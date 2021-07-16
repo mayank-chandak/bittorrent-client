@@ -3,6 +3,7 @@
 const dgram = require('dgram');
 const Buffer = require('buffer').Buffer;
 const urlParse = require('url').parse;
+const crypto = require('crypto');
 
 module.exports.getPeers = (torrent, callback) => {
     const socket = dgram.createSocket('udp4');
@@ -37,7 +38,19 @@ function respType(){
 }
 
 function buildConnReq(){
+    const buf = Buffer.alloc(16);
 
+    // magic constant for UDP... protocol ID
+    buf.writeUInt32BE(0x417);
+    buf.writeUInt32BE(0x27101980);
+
+    //action: 0 connect
+    buf.writeUInt32BE(0, 8);
+
+    //random transaction ID
+    crypto.randomBytes(4).copy(buf, 12);
+
+    return buf;
 }
 
 function parseConnResp(){
