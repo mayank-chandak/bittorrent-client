@@ -7,10 +7,11 @@ const message = require('./message.js');
 const Pieces = require('./Pieces');
 const Queue = require('./Queue');
 
-module.exports = torrent => {
+module.exports = (torrent, path) => {
     tracker.getPeers(torrent, peers => {
         const pieces = new Pieces(torrent);
-        peers.forEach(peer => download(peer, torrent, pieces));
+        const file = fs.openSync(path, 'w');
+        peers.forEach(peer => download(peer, torrent, pieces, file));
     });
 };
 
@@ -88,8 +89,21 @@ function bitfieldHandler(socket, pieces, queue, payload) {
     if (queueEmpty) requestPiece(socket, pieces, queue);
 }
 
-function pieceHandler() {
+function pieceHandler(socket, pieces, queue, torrent, file, pieceResp) {
+    console.log(pieceResp);
+    pieces.addReceived(pieceResp);
 
+    const offset = pieceResp.index * torrent.info['piece length'] + piecesResp.begin;
+    fs.write(file, pieceResp.block, 
+        0, pieceResp.block.length, offset, () => {});
+
+    if (pieces.isDone()) {
+        socket.end();
+        console.log('DONE!');
+        try { fs.closeSync(file); } catch(e) {}
+    } else {
+        requestPiece(socket, pieces, queue);
+    }
 }
 
 function requestPiece(socket, pieces, queue) {
