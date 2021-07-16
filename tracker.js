@@ -9,7 +9,9 @@ const util = require('./util')
 
 module.exports.getPeers = (torrent, callback) => {
     const socket = dgram.createSocket('udp4');
-    const url = torrent.announce.toString('utf8');
+    const url = torrent["announce-list"][1].toString('utf8');
+
+    console.log(url);
 
     // sending connection request
     udpSend(socket, buildConnReq(), url);
@@ -32,10 +34,10 @@ module.exports.getPeers = (torrent, callback) => {
 
 function udpSend(socket, message, rawUrl, callback=()=>{}) {
     const url = urlParse(rawUrl);
-    socket.send(message, 0, message.length, url.port, url.host, callback);
+    socket.send(message, 0, message.length, url.port, url.hostname, callback);
 }
 
-function respType(){
+function respType(resp){
     const action = resp.readUInt32BE(0);
     if (action === 0) return 'connect';
     if (action === 1) return 'announce';
@@ -45,8 +47,8 @@ function buildConnReq(){
     const buf = Buffer.alloc(16);
 
     // magic constant for UDP... protocol ID
-    buf.writeUInt32BE(0x417);
-    buf.writeUInt32BE(0x27101980);
+    buf.writeUInt32BE(0x417, 0);
+    buf.writeUInt32BE(0x27101980, 4);
 
     //action: 0 connect
     buf.writeUInt32BE(0, 8);
@@ -57,7 +59,7 @@ function buildConnReq(){
     return buf;
 }
 
-function parseConnResp(){
+function parseConnResp(resp){
     return {
         action: resp.readUInt32BE(0),
         transactionId: resp.readUInt32BE(4),
@@ -99,7 +101,7 @@ function buildAnnounceReq(connId, torrent, port=6881){
 
 }
 
-function parseAnnounceRes(resp){
+function parseAnnounceResp(resp){
     function group(iterable, groupSize){
         let groups = [];
         for (let i = 0; i < iterable.length; i += groupSize){

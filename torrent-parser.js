@@ -11,7 +11,7 @@ module.exports.open = (filepath) => {
 
 module.exports.size = torrent => {
     const size = torrent.info.files ? 
-       torrent.info.file.map(file => file.length).reduce((a, b) => a + b) : 
+       torrent.info.files.map(file => file.length).reduce((a, b) => a + b) : 
        torrent.info.length;
 
        return bignum.toBuffer(size, {size : 8});
