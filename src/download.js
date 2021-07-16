@@ -18,7 +18,8 @@ function download(peer, torrent, requested) {
     socket.connect(peer.port, peer.ip, () => {
         socket.write(message.buildHandShake(torrent));
     });
-    onWholeMsg(socket, msg => msgHandler(msg, socket, requested));
+    const queue = [];
+    onWholeMsg(socket, msg => msgHandler(msg, socket, requested, queue));
 }
 
 function onWholeMsg(socket, callback) {
@@ -39,7 +40,7 @@ function onWholeMsg(socket, callback) {
     });
 }
 
-function msgHandler(msg, socket, requested) {
+function msgHandler(msg, socket, requested, queue) {
     if (isHandshake(msg)) {
         socket.write(message.buildInterested());
     } else {
@@ -47,9 +48,9 @@ function msgHandler(msg, socket, requested) {
 
         if (m.id === 0) chokeHandler();
         if (m.id === 1) unchokeHandler();
-        if (m.id === 4) haveHandler(m.payload, socket, requested);
+        if (m.id === 4) haveHandler(m.payload, socket, requested, queue);
         if (m.id === 5) bitfieldHandler(m.payload);
-        if (m.id === 7) pieceHandler(m.payload);
+        if (m.id === 7) pieceHandler(m.payload, socket, requested, queue);
     }
 }
 
@@ -66,18 +67,27 @@ function unchokeHandler() {
 
 }
 
-function haveHandler(payload, socket, requested) {
+function haveHandler(payload, socket, requested, queue) {
     const pieceIndex = payload.readUInt32BE(0);
-    if (!requested[pieceIndex]) {
-        socket.write(message.buildRequest( ));
+    queue.push(pieceIndex);
+    if (queue.length === 1) {
+        requestPiece(socket, requested, queue);
     }
-    requested[pieceIndex] = true;
 }
 
 function bitfieldHandler(payload) {
 
 }
 
-function pieceHandler(payload) {
+function pieceHandler(payload, socket, request, queue) {
+    queue.shift();
+    requestPiece(socket, requested, queue);
+}
 
+function requestPiece(socket, requested, queue) {
+    if (requested[queue[0]]) {
+        queue.shift();
+    } else {
+        socket.write(message.buildRequest(pieceIndex));
+    }
 }
