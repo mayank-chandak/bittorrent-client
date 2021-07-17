@@ -44,7 +44,7 @@ function respType(resp){
 }
 
 function buildConnReq(){
-    const buf = Buffer.alloc(16);
+    const buf = Buffer.allocUnsafe(16);
 
     // magic constant for UDP... protocol ID
     buf.writeUInt32BE(0x417, 0);

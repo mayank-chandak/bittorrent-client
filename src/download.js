@@ -6,6 +6,7 @@ const tracker = require('./tracker');
 const message = require('./message.js');
 const Pieces = require('./Pieces');
 const Queue = require('./Queue');
+const fs = require('fs');
 
 module.exports = (torrent, path) => {
     tracker.getPeers(torrent, peers => {
@@ -15,14 +16,14 @@ module.exports = (torrent, path) => {
     });
 };
 
-function download(peer, torrent, pieces) {
+function download(peer, torrent, pieces, file) {
     const socket = new net.Socket();
     socket.on('error', console.log);
     socket.connect(peer.port, peer.ip, () => {
         socket.write(message.buildHandShake(torrent));
     });
     const queue = new Queue(torrent);
-    onWholeMsg(socket, msg => msgHandler(msg, socket, pieces, queue));
+    onWholeMsg(socket, msg => msgHandler(msg, socket, pieces, queue, torrent, file));
 }
 
 function onWholeMsg(socket, callback) {
@@ -43,30 +44,30 @@ function onWholeMsg(socket, callback) {
     });
 }
 
-function msgHandler(msg, socket, pieces, queue) {
+function msgHandler(msg, socket, pieces, queue, torrent, file) {
     if (isHandshake(msg)) {
         socket.write(message.buildInterested());
     } else {
         const m = message.parse(msg);
 
-        if (m.id === 0) chokeHandler();
+        if (m.id === 0) chokeHandler(socket);
         if (m.id === 1) unchokeHandler(socket, pieces, queue);
-        if (m.id === 4) haveHandler(m.payload);
-        if (m.id === 5) bitfieldHandler(m.payload);
-        if (m.id === 7) pieceHandler(m.payload);
+        if (m.id === 4) haveHandler(socket, pieces, queue, m.payload);
+        if (m.id === 5) bitfieldHandler(socket, pieces, queue, m.payload);
+        if (m.id === 7) pieceHandler(socket, pieces, queue, torrent, file, m.payload);
     }
 }
 
 function isHandshake(msg) {
     return msg.length === msg.readUInt8(0) + 49 &&
-        msg.toString('utf8', 1) === 'BitTorrent protocol';
+        msg.toString('utf8', 1, 20) === 'BitTorrent protocol';
 }
 
 function chokeHandler(socket) {
     socket.end();
 }
 
-function unchokeHandler() {
+function unchokeHandler(socket, pieces, queue) {
     queue.choked = false;
     requestPiece(socket, pieces, queue);
 }
@@ -90,7 +91,6 @@ function bitfieldHandler(socket, pieces, queue, payload) {
 }
 
 function pieceHandler(socket, pieces, queue, torrent, file, pieceResp) {
-    console.log(pieceResp);
     pieces.addReceived(pieceResp);
 
     const offset = pieceResp.index * torrent.info['piece length'] + piecesResp.begin;

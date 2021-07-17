@@ -11,8 +11,8 @@ module.exports = class {
             return arr.map((_, i) => new Array(tp.blocksPerPiece(torrent, i)).fill(false));
         }
 
-        this._requested = new Array(size).fill(false);
-        this._received = new Array(size).fill(false);
+        this._requested = buildPiecesArray();
+        this._received = buildPiecesArray();
     }
 
     addRequested(pieceBlock) {
