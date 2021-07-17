@@ -91,9 +91,10 @@ function bitfieldHandler(socket, pieces, queue, payload) {
 }
 
 function pieceHandler(socket, pieces, queue, torrent, file, pieceResp) {
+    pieces.printPercentDone();
     pieces.addReceived(pieceResp);
 
-    const offset = pieceResp.index * torrent.info['piece length'] + piecesResp.begin;
+    const offset = pieceResp.index * torrent.info['piece length'] + pieceResp.begin;
     fs.write(file, pieceResp.block, 
         0, pieceResp.block.length, offset, () => {});
 
